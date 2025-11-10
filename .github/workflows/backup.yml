@@ -1,0 +1,22 @@
+name: Backup Weekly
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # todo domingo
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create backup zip
+        run: zip -r relume-backup.zip ./docs ./scripts ./api ./frontend
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: relume-backup
+          path: relume-backup.zip
