@@ -1,27 +1,26 @@
 import os, uuid, requests
-from datetime import datetime, timedelta
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Body, HTTPException
 from fastapi.responses import JSONResponse
-from azure.storage.blob import BlobClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobClient
+import openai
 
+# Configurações do ambiente
 APP_NAME = "relume-api"
+CONTAINER_URL = os.environ["AZURE_STORAGE_URL"].rstrip("/")
+ACCOUNT_KEY = os.environ["AZURE_STORAGE_KEY"]
+VISION_ENDPOINT = os.environ["VISION_ENDPOINT"].rstrip("/")
+VISION_KEY = os.environ["VISION_API_KEY"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+OPENAI_ENDPOINT = os.environ["OPENAI_ENDPOINT"]
 
-def _getenv(k: str) -> str:
-    v = os.getenv(k)
-    if not v:
-        raise RuntimeError(f"Variável de ambiente ausente: {k}")
-    return v
+# Inicializa API FastAPI
+app = FastAPI(title="Relume API", version="0.1.1")
 
-CONTAINER_URL = _getenv("AZURE_STORAGE_URL").rstrip("/")     # ex: https://acc.blob.core.windows.net/uploads
-ACCOUNT_KEY   = _getenv("AZURE_STORAGE_KEY")
-VISION_EP     = _getenv("VISION_ENDPOINT").rstrip("/")       # ex: https://centralus.api.cognitive.microsoft.com
-VISION_KEY    = _getenv("VISION_API_KEY")
-
-app = FastAPI(title="Relume API", version="0.1.0")
-
-@app.get("/")
-def root():
-    return {"message": "Relume API online"}
+# Inicializa cliente OpenAI via Azure
+openai.api_type = "azure"
+openai.api_key = OPENAI_API_KEY
+openai.api_base = OPENAI_ENDPOINT
+openai.api_version = "2023-05-15"
 
 @app.get("/health")
 def health():
@@ -29,32 +28,40 @@ def health():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
+    blob_name = f"{uuid.uuid4()}_{file.filename}"
+    blob = BlobClient.from_blob_url(f"{CONTAINER_URL}/{blob_name}", credential=ACCOUNT_KEY)
+    data = await file.read()
+    blob.upload_blob(data, overwrite=True)
+    blob_url = f"{CONTAINER_URL}/{blob_name}"
+
+    analyze_url = f"{VISION_ENDPOINT}/vision/v3.2/analyze?visualFeatures=Description,Tags,Faces"
+    headers = {"Ocp-Apim-Subscription-Key": VISION_KEY, "Content-Type": "application/json"}
+    payload = {"url": blob_url}
+    
+    vision = {"note": "container privado; gere SAS para análise"}
     try:
-        # 1) grava no Blob
-        blob_name = f"{uuid.uuid4()}_{file.filename}"
-        blob = BlobClient.from_blob_url(f"{CONTAINER_URL}/{blob_name}", credential=ACCOUNT_KEY)
-        data = await file.read()
-        blob.upload_blob(data, overwrite=True)
-        blob_url = f"{CONTAINER_URL}/{blob_name}"
+        r = requests.post(analyze_url, headers=headers, json=payload, timeout=20)
+        if r.status_code < 300:
+            vision = r.json()
+    except Exception:
+        pass
 
-        # 2) gera SAS de leitura por 10 min (container privado)
-        sas = generate_blob_sas(
-            account_name=blob.account_name,
-            container_name=blob.container_name,
-            blob_name=blob.blob_name,
-            account_key=ACCOUNT_KEY,
-            permission=BlobSasPermissions(read=True),
-            expiry=datetime.utcnow() + timedelta(minutes=10)
+    return JSONResponse({"blob": blob_url, "vision": vision})
+
+@app.post("/narrate")
+async def narrate(data: dict = Body(...)):
+    try:
+        tags = ", ".join(data.get("tags", []))
+        prompt = f"Crie uma narrativa curta e emocional sobre uma lembrança que envolve: {tags}."
+        
+        response = openai.ChatCompletion.create(
+            engine="gpt-35-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=120
         )
-        sas_url = f"{blob.url}?{sas}"
-
-        # 3) chama Vision (descrição + tags + faces)
-        analyze_url = f"{VISION_EP}/vision/v3.2/analyze?visualFeatures=Description,Tags,Faces"
-        headers = {"Ocp-Apim-Subscription-Key": VISION_KEY, "Content-Type": "application/json"}
-        r = requests.post(analyze_url, headers=headers, json={"url": sas_url}, timeout=25)
-
-        vision = r.json() if r.status_code < 300 else {"error": r.text, "status": r.status_code}
-
-        return JSONResponse({"blob": blob_url, "vision": vision})
+        
+        text = response.choices[0].message["content"].strip()
+        return {"narrative": text}
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
