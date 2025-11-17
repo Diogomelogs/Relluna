@@ -6,8 +6,9 @@ from datetime import datetime
 
 from fastapi import FastAPI, UploadFile, File, Body, HTTPException
 from fastapi.responses import JSONResponse
-from azure.storage.blob import BlobClient, ContainerClient
+from azure.storage.blob import BlobClient
 import openai
+from pymongo import MongoClient
 
 # ==========================
 # Configurações do ambiente
@@ -22,12 +23,14 @@ VISION_KEY = os.environ["VISION_API_KEY"]
 
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 OPENAI_ENDPOINT = os.environ["OPENAI_ENDPOINT"]
-OPENAI_DEPLOYMENT = os.environ["OPENAI_DEPLOYMENT"]  # gpt-35-turbo, etc.
+OPENAI_DEPLOYMENT = os.environ["OPENAI_DEPLOYMENT"]  # ex.: gpt-35-turbo
+
+MONGO_URI = os.environ.get("MONGO_URI")  # string de conexão do MongoDB Atlas
 
 # ==========================
 # FastAPI
 # ==========================
-app = FastAPI(title="Relume API", version="0.2.0")
+app = FastAPI(title="Relume API", version="0.3.0")
 
 # ==========================
 # Azure OpenAI
@@ -37,8 +40,21 @@ openai.api_key = OPENAI_API_KEY
 openai.api_base = OPENAI_ENDPOINT
 openai.api_version = "2023-05-15"
 
+# ==========================
+# MongoDB (timeline)
+# ==========================
+mongo_client = None
+timeline_coll = None
 
-# Normalização do Logical ID
+if MONGO_URI:
+    mongo_client = MongoClient(MONGO_URI)
+    db = mongo_client["relume"]
+    timeline_coll = db["timeline_items"]
+
+
+# ==========================
+# Funções auxiliares
+# ==========================
 def _normalize_logical_id(filename: str) -> str:
     name, _ = os.path.splitext(filename)
     logical = name.strip().lower()
@@ -68,7 +84,11 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "app": APP_NAME}
+    return {
+        "status": "ok",
+        "app": APP_NAME,
+        "mongo_connected": bool(timeline_coll is not None),
+    }
 
 
 # ==========================
@@ -82,9 +102,10 @@ async def upload(file: UploadFile = File(...)):
     2. Gera hash SHA256
     3. Cria logical_id
     4. Gera versão vYYYYMMDDTHHMMSSZ
-    5. Envia ao Blob
+    5. Envia ao Blob (container privado)
     6. Grava metadados
     7. Envia conteúdo binário à Vision API
+    8. Retorna dados para possível uso em /process
     """
 
     # 1) Lê arquivo
@@ -124,11 +145,10 @@ async def upload(file: UploadFile = File(...)):
     try:
         blob.set_blob_metadata(metadata)
     except Exception:
-        pass  # não quebrar fluxo
+        # falha de metadado não interrompe o fluxo principal
+        pass
 
-    # ==========================
-    # 7) Vision API com ANÁLISE BINÁRIA
-    # ==========================
+    # 7) Vision API com BINÁRIO
     analyze_url = (
         f"{VISION_ENDPOINT}/vision/v3.2/analyze"
         "?visualFeatures=Description,Tags,Faces"
@@ -140,23 +160,16 @@ async def upload(file: UploadFile = File(...)):
     }
 
     vision = {}
-
     try:
         r = requests.post(analyze_url, headers=headers, data=data, timeout=25)
-
         if r.ok:
             vision = r.json()
         else:
-            vision = {
-                "error": r.text,
-                "status": r.status_code,
-            }
+            vision = {"error": r.text, "status": r.status_code}
     except Exception as ex:
         vision = {"error": str(ex)}
 
-    # ==========================
-    # Resposta ao cliente
-    # ==========================
+    # 8) Resposta
     return JSONResponse(
         {
             "blob": blob_url,
@@ -166,6 +179,115 @@ async def upload(file: UploadFile = File(...)):
             "vision": vision,
         }
     )
+
+
+# ==========================
+# /process — grava na timeline (MongoDB)
+# ==========================
+@app.post("/process")
+async def process_media(payload: dict = Body(...)):
+    """
+    Espera um payload no formato:
+
+    {
+      "user_id": "abc123",
+      "blob": "https://.../uploads/...",
+      "hash_sha256": "...",
+      "logical_id": "img_5285",
+      "version": "20251117T201038Z",
+      "vision": {
+        "tags": [...],
+        "description": {...},
+        "faces": [...]
+      }
+    }
+
+    Grava um documento em timeline_items.
+    """
+
+    if timeline_coll is None:
+        raise HTTPException(
+            status_code=500,
+            detail="MongoDB não configurado. Defina MONGO_URI no App Service."
+        )
+
+    user_id = payload.get("user_id")
+    blob_url = payload.get("blob")
+    file_hash = payload.get("hash_sha256")
+    logical_id = payload.get("logical_id")
+    version = payload.get("version")
+    vision = payload.get("vision", {}) or {}
+
+    if not user_id or not blob_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Campos 'user_id' e 'blob' são obrigatórios."
+        )
+
+    tags = vision.get("tags", [])
+    description = vision.get("description", {})
+    faces = vision.get("faces", [])
+
+    # extrai caption principal, se existir
+    main_caption = None
+    try:
+        captions = description.get("captions", [])
+        if captions:
+            main_caption = captions[0].get("text")
+    except Exception:
+        main_caption = None
+
+    doc = {
+        "user_id": user_id,
+        "blob_url": blob_url,
+        "hash_sha256": file_hash,
+        "logical_id": logical_id,
+        "version": version,
+        "vision_tags": tags,
+        "vision_description": description,
+        "vision_faces": faces,
+        "main_caption": main_caption,
+        "created_at": datetime.utcnow(),
+    }
+
+    result = timeline_coll.insert_one(doc)
+
+    return {
+        "saved": True,
+        "id": str(result.inserted_id),
+        "user_id": user_id,
+        "blob_url": blob_url,
+    }
+
+
+# ==========================
+# /timeline — retorna timeline por usuário
+# ==========================
+@app.get("/timeline")
+def get_timeline(user_id: str):
+    """
+    Retorna todos os itens da timeline de um usuário, ordenados por created_at desc.
+
+    GET /timeline?user_id=abc123
+    """
+
+    if timeline_coll is None:
+        raise HTTPException(
+            status_code=500,
+            detail="MongoDB não configurado. Defina MONGO_URI no App Service."
+        )
+
+    items = list(
+        timeline_coll.find({"user_id": user_id}).sort("created_at", -1)
+    )
+
+    for item in items:
+        item["_id"] = str(item["_id"])
+        # converte datetime para string ISO
+        if isinstance(item.get("created_at"), datetime):
+            item["created_at"] = item["created_at"].isoformat() + "Z"
+
+    return items
 
 
 # ==========================
