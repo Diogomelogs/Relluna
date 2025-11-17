@@ -69,7 +69,7 @@ async def upload(file: UploadFile = File(...)):
     """
     Upload com versionamento lógico:
     - logical_id derivado do nome do arquivo
-    - versão = quantidade de blobs existentes com prefixo logical_id/ + 1
+    - versão = timestamp UTC (vYYYYMMDDTHHMMSSZ)
     - nome no Blob: logical_id/v{versao}/{arquivo_original}
     - metadados: original_filename, logical_id, version, hash_sha256, uploaded_at
     """
@@ -82,14 +82,11 @@ async def upload(file: UploadFile = File(...)):
     # 2) Calcula logical_id a partir do nome do arquivo
     logical_id = _normalize_logical_id(file.filename)
 
-    # 3) Descobre a próxima versão lógica no container
-    container_client = _get_container_client()
-    prefix = f"{logical_id}/"
-    existing = list(container_client.list_blobs(name_starts_with=prefix))
-    next_version = len(existing) + 1
+    # 3) Gera versão lógica baseada em timestamp (não precisa listar blobs)
+    version_str = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
 
     # 4) Monta o nome do blob com versionamento lógico
-    blob_name = f"{logical_id}/v{next_version}/{file.filename}"
+    blob_name = f"{logical_id}/v{version_str}/{file.filename}"
 
     # 5) Faz o upload no Blob Storage
     blob = BlobClient.from_blob_url(
@@ -102,14 +99,14 @@ async def upload(file: UploadFile = File(...)):
     metadata = {
         "original_filename": file.filename,
         "logical_id": logical_id,
-        "version": str(next_version),
+        "version": version_str,
         "hash_sha256": file_hash,
         "uploaded_at": datetime.utcnow().isoformat() + "Z",
     }
     try:
         blob.set_blob_metadata(metadata)
     except Exception:
-        # falha em metadados não deve impedir o fluxo principal
+        # falha em metadados não interrompe o fluxo principal
         pass
 
     # 7) Vision: descrição/tags/faces
@@ -137,12 +134,11 @@ async def upload(file: UploadFile = File(...)):
         {
             "blob": blob_url,
             "logical_id": logical_id,
-            "version": next_version,
+            "version": version_str,
             "hash_sha256": file_hash,
             "vision": vision,
         }
     )
-
 
 @app.post("/narrate")
 async def narrate(data: dict = Body(...)):
