@@ -136,7 +136,7 @@ async def upload(file: UploadFile = File(...)):
 
     # 4) Versionamento lógico com timestamp UTC
     version_str = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-
+    
     # 5) Caminho no Blob
     blob_name = f"{logical_id}/v{version_str}/{file.filename}"
 
