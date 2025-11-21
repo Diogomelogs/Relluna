@@ -1,116 +1,221 @@
-# Relume Labs — Infraestrutura G3 (2025–2027)
+📘 Relluna Labs — Infraestrutura G3 (2025–2027)
 
-**Objetivo:**  
-Unificar toda a base técnica do ecossistema Relume Labs, com foco em SaaS + IA.
+Do analógico ao presente. Preservando memórias, conectando gerações.
 
-**Estrutura de diretórios:**
-/docs → documentação técnica e guias
-/scripts → automações e integrações
-/api → endpoints e serviços backend
-/frontend → interfaces web/app
-/automation → rotinas CI/CD e backup
-/keys → arquivo modelo .env.example
+Visão Geral
 
-**Fluxo Operacional (macro):**
-Upload → Azure Blob → Vision API → MongoDB Atlas → OpenAI → Timeline Web (Framer/Firebase)
+A Relluna Labs é um ecossistema dedicado a transformar memórias analógicas e digitais em presença, narrativa e continuidade.
+Nosso propósito é possibilitar que famílias, criadores, instituições, escolas e empresas possam:
 
-**Links úteis:**
-- Azure for Students: https://azure.microsoft.com/free/students/
-- MongoDB Atlas: https://www.mongodb.com/atlas
-- OpenAI API: https://platform.openai.com
-- Notion (documentação): https://www.notion.so
+Digitalizar memórias analógicas
 
-# Prova de Anterioridade – Projeto Relume  
-**Versão Registrada: v2-final**  
-**SHA-256 do Documento:** ( a421780a33b9619f0d2baea027d07e133bece46becf22eb30ced33f9a779a213)
+Organizar fotos, vídeos e áudios
 
----
+Catalogar automaticamente com IA
 
-## 1. Finalidade deste Repositório  
-Este repositório privado armazena documentação técnica, evidências visuais, código-fonte e materiais associados ao desenvolvimento do projeto **Relume**.  
-Seu objetivo é servir como **prova de anterioridade** (prior art evidence), para fins jurídicos de proteção de autoria, arquitetura e propriedade intelectual.
+Criar linhas do tempo narrativas
 
----
+Compartilhar acervos, histórias e reluminações
 
-## 2. Escopo da Prova de Anterioridade  
-A evidência registrada cobre:
+Este repositório documenta a infraestrutura G3, que estabelece a base técnica do projeto para operação real em ambiente cloud, com arquitetura mínima, enxuta e totalmente funcional.
 
-- Conceito do projeto e sua natureza tecnológica  
-- Arquitetura SaaS, IA e infraestrutura Azure  
-- Modelo de API (FastAPI)  
-- Código-fonte original (`main.py`)  
-- Prints do ambiente Azure, GitHub e Vision API  
-- Roadmap técnico e de produto (G0 → G3)  
-- Hash criptográfico SHA-256 do PDF registrado  
-- Datas associadas aos commits, deploy, prints e gerações de infraestrutura  
-- Metodologia e lógica de funcionamento do sistema Relume
+Objetivo da Infraestrutura
 
-Este pacote caracteriza **criação independente** e **anterioridade comprovada**.
+A fase G3 tem como foco:
 
----
+✔ Tornar a Relluna funcional e pública
 
-## 3. Natureza Jurídica  
-A publicação deste material em repositório privado configura:
+Permitir que usuários possam realmente fazer upload, processar mídias, gerar contexto com IA e acessar suas memórias em uma timeline viva.
 
-- **Obra intelectual protegida** (Lei 9.610/98 – Direitos Autorais)  
-- **Comprovação técnica de autoria** (Código Civil)  
-- **Prior Art Evidence** (aceito em disputas de PI)  
-- **Registro temporal verificável** (timestamps do GitHub + hash)  
-- **Autenticidade documental** (hash SHA-256)
+✔ Criar a base para o ecossistema completo
 
-Não constitui patente, mas **prova válida** para reivindicar originalidade.
+Esta infraestrutura estabelece a fundação para:
 
----
+Relluna Scan (digitalização assistida)
 
-## 4. Direitos Autorais  
-Todos os arquivos, textos, conceitos, fluxos, códigos e imagens aqui contidos são de titularidade do autor:
+Relluna Cloud (álbum em nuvem + IA)
 
-**Diogo de Melo Gomes Silva**  
-Brasil – 2025
+Relluna Atlas (catalogação profunda para B2B e acervos institucionais)
 
-A reprodução, distribuição, comercialização ou exploração sem autorização prévia é proibida.
+Relluna Moments / Reluminações (narrativas emocionais)
 
----
+Integração com dispositivos físicos (dock multimídia, leitores magnéticos, etc.)
 
-## 5. Licença Aplicada  
-**"Todos os direitos reservados – Uso Restrito."**
+✔ Criar documentação, governança e prova de anterioridade
 
-Nenhuma permissão é concedida, salvo autorização escrita expressa do autor.
+Incluindo arquitetura, fluxo, estrutura de dados e APIs.
 
----
+Arquitetura do G3
 
-## 6. Conteúdos Incluídos  
-- `/docs/prova_anterioridade_relume_v2_final.pdf`  
-- Prints técnicos  
-- Arquivos auxiliares (*.png, *.jpg, *.txt)  
-- Código-fonte (FastAPI)  
-- Roadmap oficial  
-- Evidências Azure e GitHub
+A infraestrutura utiliza uma combinação de serviços cloud e IA moderna, garantindo escalabilidade e um fluxo contínuo entre upload, processamento e consumo dos dados.
 
----
+Componentes Principais
+Componente	Tecnologia	Função
+API Relluna	FastAPI (Python) + Azure App Service	Core da aplicação. Recebe uploads, processa mídias, gera metadados e comunica com bancos e storages.
+Armazenamento de Mídia	Azure Blob Storage	Guarda fotos, vídeos e áudios enviados pelos usuários.
+Banco de Dados	MongoDB Atlas	Armazena registros da timeline, dados de processamento e metadados.
+IA de Visão Computacional	Azure Vision	Extrai tags, descrições, rostos, elementos e contexto visual.
+IA de Linguagem	OpenAI GPT / Azure OpenAI	Constrói narrativas curtas, legendas e interpretações.
+Frontend G3 Web	Next.js 14	Interface mínima funcional com upload, timeline e detalhe de mídia.
+Integração Código–Infra	GitHub + GitHub Actions	Deploy contínuo automatizado.
+Observabilidade	Kudu / Azure Monitor	Logs, métricas e inspeção da aplicação.
+Fluxo Operacional G3
+Fluxo mínimo:
 
-## 7. Hashes Criptográficos  
-Para verificação e integridade: 
-Hash do Documento
-a421780a33b9619f0d2baea027d07e133bece46becf22eb30ced33f9a779a213
+Upload
 
+Usuário envia foto/vídeo/áudio via web
 
----
+Arquivo é versionado e enviado ao Blob Storage
 
-## 8. Instruções de Verificação  
-Para verificar integridade no Linux/macOS: SHA-256: a421780a33b9619f0d2baea027d07e133bece46becf22eb30ced33f9a779a213
+Processamento
 
+Azure Vision extrai descrição, objetos, tags e contexto
 
----
+OpenAI gera narrativa curta (opcional)
 
-## 9. Contato do Autor  
-Para permissões, licenças específicas ou uso autorizado:
+Metadados são gravados no MongoDB Atlas
 
-E-mail: **diogomelogsgs@gmail.com**  
-Nome: **Diogo de Melo Gomes Silva**
+Timeline
 
----
+Dados são exibidos em ordem cronológica
 
-**Este repositório serve como proteção legal e técnica da criação original do projeto Relume.**
+Usuário acessa o detalhe de cada mídia
 
+Reluminação (opcional)
 
+IA compila momentos especiais em formato narrativo
+
+Priorizado para fases G4–G5
+
+Rotas da API
+POST /upload
+
+Recebe upload de mídia e gera versão Blob.
+
+POST /process
+
+Aplica Vision e organiza metadados.
+
+GET /timeline?user_id=
+
+Retorna timeline viva do usuário.
+
+POST /narrate
+
+Gera narrativa emocional (modo inicial).
+
+GET /health
+
+Verificação da integridade da API.
+
+Documentação completa:
+/docs (Swagger UI automaticamente gerado)
+
+Estrutura de Arquivos do Repositório
+root/
+│
+├── api/main.py             # API FastAPI principal
+├── requirements.txt        # Dependências
+├── scripts/                # Ferramentas internas
+├── tools/                  # Utilitários e funções auxiliares
+├── frontend/ (opcional)    # G3 Web App (outro repositório)
+└── README.md               # Este documento
+
+Prova de Anterioridade — Projeto Relluna
+
+Este repositório e suas versões armazenam:
+
+Documentação técnica
+
+Arquitetura do produto
+
+Estrutura de banco e dados
+
+Fluxos operacionais
+
+Interface mínima G3
+
+Interações com IA
+
+APIs e endpoints
+
+Essa documentação funciona como prova de anterioridade, importante para:
+
+Registro de marca
+
+Proteção intelectual
+
+Histórico de desenvolvimento
+
+Comprovação de autoria
+
+Defesa contra plágio ou disputas
+
+Escopo da Prova
+
+A prova inclui:
+
+Estrutura e narrativa do ecossistema Relluna
+
+Arquitetura e fluxo G0 → G3
+
+Pitch inicial, visão de longo prazo e roadmap conceitual
+
+Modelos de dados
+
+Funções de IA (Vision / Narrate)
+
+Desenho das rotas da API
+
+Processos de digitalização
+
+Propostas de uso B2C, B2B e Institucional
+
+Próximas Fases
+G4 – Experiência e Estética
+
+Home refinada
+
+Timeline emocional (linha de vida)
+
+Carrossel de Reluminações
+
+Interface mobile-first
+
+Estética marinha/esmeralda
+
+Micro animações respirantes
+
+G5 – Relluna Scan
+
+Digitalização assistida
+
+Orientação de enquadramento
+
+Correções automáticas
+
+Captura multi-dispositivo
+
+G6 – Relluna Atlas
+
+Catalogação avançada
+
+Redes de relações
+
+Mapa cruzado de acervos
+
+Pesquisas semânticas
+
+Licença e Direitos
+
+Todo o código, documentação, fluxos, modelos e arquitetura pertencem à Relluna Labs.
+É proibida a utilização comercial, parcial ou total, sem autorização formal.
+
+Contato
+
+Relluna Labs
+Founder: Diogo D'Melo
+E-mail: diogomelogs@gmail.com
+
+🌙 Relluna – Do analógico ao presente.
