@@ -35,9 +35,11 @@ jobs:
           cd package
           zip -r ../relume-api.zip .
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: relume-api
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-          package: relume-api.zip
+       - name: Deploy to Azure Web App
+  uses: azure/webapps-deploy@v2
+  with:
+    app-name: relume-api
+    publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+    package: relume-api.zip
+    # REMOVER slot-name
+
