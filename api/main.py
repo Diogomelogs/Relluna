@@ -12,7 +12,7 @@ import openai
 from pymongo import MongoClient
 
 # IMPORTA O ROUTER DE AUTENTICAÇÃO
-from auth import router as auth_router
+from .auth import router as auth_router
 
 # ==========================
 # Configurações do ambiente
