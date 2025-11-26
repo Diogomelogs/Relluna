@@ -214,7 +214,7 @@ Todo o código, documentação, fluxos, modelos e arquitetura pertencem à Rellu
 
 Contato
 
-Relluna Labs
+Relluna Labs - preservação
 Founder: Diogo D'Melo
 E-mail: diogomelogs@gmail.com
 
