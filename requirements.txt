@@ -11,14 +11,16 @@ python-multipart==0.0.9
 azure-storage-blob==12.20.0
 azure-core==1.30.2
 
-# OpenAI (SDK 0.28.x — compatível com openai.api_type/api_base/ChatCompletion)
+# OpenAI
 openai==0.28.1
 
-# (Opcional, mas útil para compatibilidade)
+# Compatibilidade Pydantic
 pydantic==2.8.2
 typing-extensions==4.12.2
 
+# MongoDB
 pymongo[srv]>=4.6.0
 
+# Autenticação
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
