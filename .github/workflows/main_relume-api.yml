@@ -1,15 +1,11 @@
-name: Deploy Relume API
+name: Backup Deploy Relume API
 
 on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: read
+  # opcional: dispara manualmente
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-backup:
     runs-on: ubuntu-latest
 
     steps:
@@ -35,12 +31,9 @@ jobs:
           cd package
           zip -r ../relume-api.zip .
 
-       - name: Deploy to Azure Web App
-         uses: azure/webapps-deploy@v2
-         with:
-         app-name: relume-api
-         publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-         package: relume-api.zip
-         # REMOVER slot-name
-
-
+      - name: Deploy to Azure Web App (backup)
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: relume-api
+          package: relume-api.zip
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
