@@ -6,10 +6,13 @@ from datetime import datetime
 
 from fastapi import FastAPI, UploadFile, File, Body, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware  # <--- ADICIONADO
+from fastapi.middleware.cors import CORSMiddleware
 from azure.storage.blob import BlobClient
 import openai
 from pymongo import MongoClient
+
+# IMPORTA O ROUTER DE AUTENTICAÇÃO
+from auth import router as auth_router
 
 # ==========================
 # Configurações do ambiente
@@ -31,7 +34,10 @@ MONGO_URI = os.environ.get("MONGO_URI")  # string de conexão do MongoDB Atlas
 # ==========================
 # FastAPI
 # ==========================
-app = FastAPI(title="Relume API", version="0.3.0")
+app = FastAPI(title="Relume API", version="0.4.0")
+
+# REGISTRA ROTAS DE AUTENTICAÇÃO
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 # ==========================
 # CORS (liberar chamadas do front)
@@ -76,8 +82,27 @@ def _normalize_logical_id(filename: str) -> str:
     name, _ = os.path.splitext(filename)
     logical = name.strip().lower()
 
-    for ch in [" ", ":", ";", ",", ".", "/", "\\", "|", "@", "#", "$", "%", "&",
-               "?", "!", "(", ")", "[", "]"]:
+    for ch in [
+        " ",
+        ":",
+        ";",
+        ",",
+        ".",
+        "/",
+        "\\",
+        "|",
+        "@",
+        "#",
+        "$",
+        "%", 
+        "&",
+        "?",
+        "!",
+        "(",
+        ")",
+        "[",
+        "]",
+    ]:
         logical = logical.replace(ch, "_")
 
     while "__" in logical:
@@ -125,19 +150,12 @@ async def upload(file: UploadFile = File(...)):
     8. Retorna dados para possível uso em /process
     """
 
-    # 1) Lê arquivo
     data = await file.read()
 
-    # 2) Hash de integridade
     file_hash = hashlib.sha256(data).hexdigest()
-
-    # 3) Logical ID
     logical_id = _normalize_logical_id(file.filename)
-
-    # 4) Versionamento lógico com timestamp UTC
     version_str = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    
-    # 5) Caminho no Blob
+
     blob_name = f"{logical_id}/v{version_str}/{file.filename}"
 
     blob = BlobClient.from_blob_url(
@@ -147,10 +165,8 @@ async def upload(file: UploadFile = File(...)):
 
     blob.upload_blob(data, overwrite=True)
 
-    # URL resultante do Blob
     blob_url = f"{CONTAINER_URL}/{blob_name}"
 
-    # 6) Metadados
     metadata = {
         "original_filename": file.filename,
         "logical_id": logical_id,
@@ -162,10 +178,8 @@ async def upload(file: UploadFile = File(...)):
     try:
         blob.set_blob_metadata(metadata)
     except Exception:
-        # falha de metadado não interrompe o fluxo principal
         pass
 
-    # 7) Vision API com BINÁRIO
     analyze_url = (
         f"{VISION_ENDPOINT}/vision/v3.2/analyze"
         "?visualFeatures=Description,Tags,Faces"
@@ -186,7 +200,6 @@ async def upload(file: UploadFile = File(...)):
     except Exception as ex:
         vision = {"error": str(ex)}
 
-    # 8) Resposta
     return JSONResponse(
         {
             "blob": blob_url,
@@ -203,29 +216,10 @@ async def upload(file: UploadFile = File(...)):
 # ==========================
 @app.post("/process")
 async def process_media(payload: dict = Body(...)):
-    """
-    Espera um payload no formato:
-
-    {
-      "user_id": "abc123",
-      "blob": "https://.../uploads/...",
-      "hash_sha256": "...",
-      "logical_id": "img_5285",
-      "version": "20251117T201038Z",
-      "vision": {
-        "tags": [...],
-        "description": {...},
-        "faces": [...]
-      }
-    }
-
-    Grava um documento em timeline_items.
-    """
-
     if timeline_coll is None:
         raise HTTPException(
             status_code=500,
-            detail="MongoDB não configurado. Defina MONGO_URI no App Service."
+            detail="MongoDB não configurado. Defina MONGO_URI no App Service.",
         )
 
     user_id = payload.get("user_id")
@@ -238,14 +232,13 @@ async def process_media(payload: dict = Body(...)):
     if not user_id or not blob_url:
         raise HTTPException(
             status_code=400,
-            detail="Campos 'user_id' e 'blob' são obrigatórios."
+            detail="Campos 'user_id' e 'blob' são obrigatórios.",
         )
 
     tags = vision.get("tags", [])
     description = vision.get("description", {})
     faces = vision.get("faces", [])
 
-    # extrai caption principal, se existir
     main_caption = None
     try:
         captions = description.get("captions", [])
@@ -282,25 +275,16 @@ async def process_media(payload: dict = Body(...)):
 # ==========================
 @app.get("/timeline")
 def get_timeline(user_id: str):
-    """
-    Retorna todos os itens da timeline de um usuário, ordenados por created_at desc.
-
-    GET /timeline?user_id=abc123
-    """
-
     if timeline_coll is None:
         raise HTTPException(
             status_code=500,
-            detail="MongoDB não configurado. Defina MONGO_URI no App Service."
+            detail="MongoDB não configurado. Defina MONGO_URI no App Service.",
         )
 
-    items = list(
-        timeline_coll.find({"user_id": user_id}).sort("created_at", -1)
-    )
+    items = list(timeline_coll.find({"user_id": user_id}).sort("created_at", -1))
 
     for item in items:
         item["_id"] = str(item["_id"])
-        # converte datetime para string ISO
         if isinstance(item.get("created_at"), datetime):
             item["created_at"] = item["created_at"].isoformat() + "Z"
 
@@ -317,7 +301,7 @@ async def narrate(data: dict = Body(...)):
         if not isinstance(tags_list, list):
             raise HTTPException(
                 status_code=400,
-                detail="Campo 'tags' deve ser uma lista de strings."
+                detail="Campo 'tags' deve ser uma lista de strings.",
             )
 
         tags = ", ".join(tags_list) if tags_list else "memórias pessoais"
