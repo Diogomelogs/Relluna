@@ -1,23 +1,39 @@
-name: Backup Weekly
+name: Backup Deploy Relume API
 
 on:
-  schedule:
-    - cron: "0 0 * * 0"  # todo domingo
+  # opcional: dispara manualmente
   workflow_dispatch:
 
 jobs:
-  backup:
+  deploy-backup:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create backup zip
-        run: zip -r relume-backup.zip ./docs ./scripts ./api ./frontend
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-      - name: Deploy to Azure Web App
-  uses: azure/webapps-deploy@v2
-  with:
-    app-name: relume-api
-    package: relume-api.zip
-    publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Make startup executable
+        run: chmod +x startup.sh
+
+      - name: Package app
+        run: |
+          mkdir package
+          cp -r api requirements.txt startup.sh package/
+          cd package
+          zip -r ../relume-api.zip .
+
+      - name: Deploy to Azure Web App (backup)
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: relume-api
+          package: relume-api.zip
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
